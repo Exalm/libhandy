@@ -18,6 +18,7 @@ else
 endif
 
 libglade_hdy_sources = [
+  'glade-hdy-drawer.c',
   'glade-hdy-header-group.c',
   'glade-hdy-paginator.c',
 ]

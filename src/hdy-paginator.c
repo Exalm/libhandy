@@ -18,6 +18,7 @@
 #define LINE_LENGTH 35
 #define LINE_SPACING 5
 #define LINE_OPACITY 0.45
+#define LINE_MARGIN 2
 #define DEFAULT_DURATION 250
 
 /**
@@ -154,16 +155,61 @@ notify_spacing_cb (HdyPaginator *self,
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_SPACING]);
 }
 
+static void
+draw_indicators_lines (GtkWidget      *widget,
+                       cairo_t        *cr,
+                       GtkOrientation  orientation,
+                       double          position,
+                       int             n_pages)
+{
+  GtkStyleContext *context;
+  GtkStateFlags flags;
+  GdkRGBA color;
+  int i, widget_length, indicator_length;
+  double length;
+
+  context = gtk_widget_get_style_context (widget);
+  flags = gtk_widget_get_state_flags (widget);
+  gtk_style_context_get_color (context, flags, &color);
+
+  length = (double) LINE_LENGTH / (LINE_LENGTH + LINE_SPACING);
+  indicator_length = (LINE_LENGTH + LINE_SPACING) * n_pages - LINE_SPACING;
+
+  if (orientation == GTK_ORIENTATION_HORIZONTAL) {
+    widget_length = gtk_widget_get_allocated_width (widget);
+    cairo_translate (cr, (widget_length - indicator_length) / 2, 0);
+    cairo_scale (cr, LINE_LENGTH + LINE_SPACING, LINE_WIDTH);
+  } else {
+    widget_length = gtk_widget_get_allocated_height (widget);
+    cairo_translate (cr, 0, (widget_length - indicator_length) / 2);
+    cairo_scale (cr, LINE_WIDTH, LINE_LENGTH + LINE_SPACING);
+  }
+
+  cairo_set_source_rgba (cr, color.red, color.green, color.blue,
+                         color.alpha * LINE_OPACITY);
+  for (i = 0; i < n_pages; i++) {
+    if (orientation == GTK_ORIENTATION_HORIZONTAL)
+      cairo_rectangle (cr, i, 0, length, 1);
+    else
+      cairo_rectangle (cr, 0, i, 1, length);
+    cairo_fill (cr);
+  }
+
+  cairo_set_source_rgba (cr, color.red, color.green, color.blue, color.alpha);
+  if (orientation == GTK_ORIENTATION_HORIZONTAL)
+    cairo_rectangle (cr, position, 0, length, 1);
+  else
+    cairo_rectangle (cr, 0, position, 1, length);
+  cairo_fill (cr);
+}
+
 static gboolean
 draw_indicators_cb (HdyPaginator *self,
                     cairo_t      *cr,
                     GtkWidget    *widget)
 {
-  int i, n_pages, widget_length, indicator_length;
-  double position, length;
-  GtkStyleContext *context;
-  GtkStateFlags flags;
-  GdkRGBA color;
+  int n_pages;
+  double position;
 
   g_object_get (self->scrolling_box,
                 "position", &position,
@@ -177,51 +223,50 @@ draw_indicators_cb (HdyPaginator *self,
       gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL)
     position = n_pages - position - 1;
 
-  context = gtk_widget_get_style_context (widget);
-  flags = gtk_widget_get_state_flags (widget);
-  gtk_style_context_get_color (context, flags, &color);
+  switch (self->indicator_style){
+  case HDY_PAGINATOR_INDICATOR_STYLE_NONE:
+    break;
 
-  length = (double) LINE_LENGTH / (LINE_LENGTH + LINE_SPACING);
-  indicator_length = (LINE_LENGTH + LINE_SPACING) * n_pages - LINE_SPACING;
+  case HDY_PAGINATOR_INDICATOR_STYLE_LINES:
+    draw_indicators_lines (widget, cr, self->orientation, position, n_pages);
+    break;
 
-  if (self->orientation == GTK_ORIENTATION_HORIZONTAL) {
-    widget_length = gtk_widget_get_allocated_width (widget);
-    cairo_translate (cr, (widget_length - indicator_length) / 2, 0);
-    cairo_scale (cr, LINE_LENGTH + LINE_SPACING, LINE_WIDTH);
-  } else {
-    widget_length = gtk_widget_get_allocated_height (widget);
-    cairo_translate (cr, 0, (widget_length - indicator_length) / 2);
-    cairo_scale (cr, LINE_WIDTH, LINE_LENGTH + LINE_SPACING);
+  default:
+    g_assert_not_reached ();
   }
-
-  cairo_set_source_rgba (cr, color.red, color.green, color.blue,
-                         color.alpha * LINE_OPACITY);
-  for (i = 0; i < n_pages; i++) {
-    if (self->orientation == GTK_ORIENTATION_HORIZONTAL)
-      cairo_rectangle (cr, i, 0, length, 1);
-    else
-      cairo_rectangle (cr, 0, i, 1, length);
-    cairo_fill (cr);
-  }
-
-  cairo_set_source_rgba (cr, color.red, color.green, color.blue, color.alpha);
-  if (self->orientation == GTK_ORIENTATION_HORIZONTAL)
-    cairo_rectangle (cr, position, 0, length, 1);
-  else
-    cairo_rectangle (cr, 0, position, 1, length);
-  cairo_fill (cr);
 
   return GDK_EVENT_PROPAGATE;
 }
 
 static void
-update_indicators_visibility (HdyPaginator *self)
+update_indicators (HdyPaginator *self)
 {
-  gboolean show_indicators = (self->indicator_style !=
-                              HDY_PAGINATOR_INDICATOR_STYLE_NONE);
-  g_object_set (self->indicators, "visible", show_indicators, NULL);
-  g_object_set (self->empty_box, "visible",
-                show_indicators && self->center_content, NULL);
+  gboolean show_indicators;
+  int size, margin;
+
+  show_indicators = (self->indicator_style != HDY_PAGINATOR_INDICATOR_STYLE_NONE);
+  gtk_widget_set_visible (GTK_WIDGET (self->indicators), show_indicators);
+  gtk_widget_set_visible (GTK_WIDGET (self->empty_box),
+                          show_indicators && self->center_content);
+
+  switch (self->indicator_style) {
+  case HDY_PAGINATOR_INDICATOR_STYLE_NONE:
+    break;
+
+  case HDY_PAGINATOR_INDICATOR_STYLE_LINES:
+    size = LINE_WIDTH;
+    margin = LINE_MARGIN;
+    break;
+
+  default:
+    g_assert_not_reached ();
+  }
+
+  g_object_set (self->indicators,
+                "margin", margin,
+                "width-request", size,
+                "height-request", size,
+                NULL);
 }
 
 static void
@@ -838,7 +883,7 @@ hdy_paginator_set_indicator_style (HdyPaginator               *self,
     return;
 
   self->indicator_style = style;
-  update_indicators_visibility (self);
+  update_indicators (self);
 
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_INDICATOR_STYLE]);
 }
@@ -883,7 +928,7 @@ hdy_paginator_set_center_content (HdyPaginator *self,
     return;
 
   self->center_content = center_content;
-  update_indicators_visibility (self);
+  update_indicators (self);
 
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_CENTER_CONTENT]);
 }

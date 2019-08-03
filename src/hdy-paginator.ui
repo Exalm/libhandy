@@ -24,9 +24,6 @@
             <property name="visible">False</property>
             <property name="halign">fill</property>
             <property name="valign">fill</property>
-            <property name="height-request">3</property>
-            <property name="width-request">3</property>
-            <property name="margin">2</property>
             <signal name="draw" handler="draw_indicators_cb" swapped="true"/>
           </object>
         </child>

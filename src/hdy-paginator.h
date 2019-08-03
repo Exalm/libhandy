@@ -22,6 +22,7 @@ G_DECLARE_FINAL_TYPE (HdyPaginator, hdy_paginator, HDY, PAGINATOR, GtkEventBox)
 typedef enum {
   HDY_PAGINATOR_INDICATOR_STYLE_NONE,
   HDY_PAGINATOR_INDICATOR_STYLE_LINES,
+  HDY_PAGINATOR_INDICATOR_STYLE_DOTS,
 } HdyPaginatorIndicatorStyle;
 
 HdyPaginator *hdy_paginator_new (void);

@@ -21,6 +21,13 @@
 #define LINE_MARGIN 2
 #define DEFAULT_DURATION 250
 
+#define DOTS_RADIUS 2
+#define DOTS_RADIUS_SELECTED 4
+#define DOTS_OPACITY 0.45
+#define DOTS_OPACITY_SELECTED 0.7
+#define DOTS_SPACING 5
+#define DOTS_MARGIN 3
+
 /**
  * SECTION:hdy-paginator
  * @short_description: A paginated scrolling widget.
@@ -36,6 +43,7 @@
  * HdyPaginatorIndicatorStyle
  * @HDY_PAGINATOR_INDICATOR_STYLE_NONE: No indicators
  * @HDY_PAGINATOR_INDICATOR_STYLE_LINES: Each page is denoted by a thin and long line, and active view is shown with another line that moves between them
+ * @HDY_PAGINATOR_INDICATOR_STYLE_DOTS: TODO
  *
  * These enumeration values describe the possible page indicator styles in a
  * #HdyPaginator widget.
@@ -155,6 +163,20 @@ notify_spacing_cb (HdyPaginator *self,
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_SPACING]);
 }
 
+static GdkRGBA
+get_color (GtkWidget *widget)
+{
+  GtkStyleContext *context;
+  GtkStateFlags flags;
+  GdkRGBA color;
+
+  context = gtk_widget_get_style_context (widget);
+  flags = gtk_widget_get_state_flags (widget);
+  gtk_style_context_get_color (context, flags, &color);
+
+  return color;
+}
+
 static void
 draw_indicators_lines (GtkWidget      *widget,
                        cairo_t        *cr,
@@ -162,15 +184,11 @@ draw_indicators_lines (GtkWidget      *widget,
                        double          position,
                        int             n_pages)
 {
-  GtkStyleContext *context;
-  GtkStateFlags flags;
   GdkRGBA color;
   int i, widget_length, indicator_length;
   double length;
 
-  context = gtk_widget_get_style_context (widget);
-  flags = gtk_widget_get_state_flags (widget);
-  gtk_style_context_get_color (context, flags, &color);
+  color = get_color (widget);
 
   length = (double) LINE_LENGTH / (LINE_LENGTH + LINE_SPACING);
   indicator_length = (LINE_LENGTH + LINE_SPACING) * n_pages - LINE_SPACING;
@@ -203,6 +221,52 @@ draw_indicators_lines (GtkWidget      *widget,
   cairo_fill (cr);
 }
 
+#define LERP(a, b, t) ((a) + (((b) - (a)) * (t)))
+
+static void
+draw_indicators_dots (GtkWidget      *widget,
+                      cairo_t        *cr,
+                      GtkOrientation  orientation,
+                      double          position,
+                      int             n_pages)
+{
+  GdkRGBA color;
+  int i, x, y, widget_length, indicator_length;
+
+  color = get_color (widget);
+
+  indicator_length = (DOTS_RADIUS_SELECTED * 2 + DOTS_SPACING) * n_pages - DOTS_SPACING;
+
+  if (orientation == GTK_ORIENTATION_HORIZONTAL) {
+    widget_length = gtk_widget_get_allocated_width (widget);
+    cairo_translate (cr, (widget_length - indicator_length) / 2, 0);
+  } else {
+    widget_length = gtk_widget_get_allocated_height (widget);
+    cairo_translate (cr, 0, (widget_length - indicator_length) / 2);
+  }
+
+  x = DOTS_RADIUS_SELECTED;
+  y = DOTS_RADIUS_SELECTED;
+
+  for (i = 0; i < n_pages; i++) {
+    double progress, radius, opacity;
+
+    progress = MAX (1 - ABS (position - i), 0);
+    radius = LERP (DOTS_RADIUS, DOTS_RADIUS_SELECTED, progress);
+    opacity = LERP (DOTS_OPACITY, DOTS_OPACITY_SELECTED, progress);
+
+    cairo_set_source_rgba (cr, color.red, color.green, color.blue,
+                           color.alpha * opacity);
+    cairo_arc (cr, x, y, radius, 0, 2 * M_PI);
+    cairo_fill (cr);
+
+    if (orientation == GTK_ORIENTATION_HORIZONTAL)
+      x += 2 * DOTS_RADIUS_SELECTED + DOTS_SPACING;
+    else
+      y += 2 * DOTS_RADIUS_SELECTED + DOTS_SPACING;
+  }
+}
+
 static gboolean
 draw_indicators_cb (HdyPaginator *self,
                     cairo_t      *cr,
@@ -231,6 +295,10 @@ draw_indicators_cb (HdyPaginator *self,
     draw_indicators_lines (widget, cr, self->orientation, position, n_pages);
     break;
 
+  case HDY_PAGINATOR_INDICATOR_STYLE_DOTS:
+    draw_indicators_dots (widget, cr, self->orientation, position, n_pages);
+    break;
+
   default:
     g_assert_not_reached ();
   }
@@ -249,15 +317,21 @@ update_indicators (HdyPaginator *self)
   gtk_widget_set_visible (GTK_WIDGET (self->empty_box),
                           show_indicators && self->center_content);
 
-  switch (self->indicator_style) {
-  case HDY_PAGINATOR_INDICATOR_STYLE_NONE:
-    break;
+  if (!show_indicators)
+    return;
 
+  switch (self->indicator_style) {
   case HDY_PAGINATOR_INDICATOR_STYLE_LINES:
     size = LINE_WIDTH;
     margin = LINE_MARGIN;
     break;
 
+  case HDY_PAGINATOR_INDICATOR_STYLE_DOTS:
+    size = 2 * DOTS_RADIUS_SELECTED;
+    margin = DOTS_MARGIN;
+    break;
+
+  case HDY_PAGINATOR_INDICATOR_STYLE_NONE:
   default:
     g_assert_not_reached ();
   }

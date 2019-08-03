@@ -357,6 +357,8 @@ paginator_indicator_style_name (HdyEnumValueObject *value,
     return g_strdup (_("None"));
   case HDY_PAGINATOR_INDICATOR_STYLE_LINES:
     return g_strdup (_("Lines"));
+  case HDY_PAGINATOR_INDICATOR_STYLE_DOTS:
+    return g_strdup (_("Dots"));
   default:
     return NULL;
   }

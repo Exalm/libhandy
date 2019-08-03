@@ -1447,6 +1447,24 @@
                         </child>
                       </object>
                     </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="label">123</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="label">123</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="label">123</property>
+                          </object>
+                        </child>
                   </object>
                   <packing>
                     <property name="name">paginator</property>

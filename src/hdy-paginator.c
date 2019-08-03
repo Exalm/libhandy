@@ -17,16 +17,17 @@
 #define LINE_WIDTH 3
 #define LINE_LENGTH 35
 #define LINE_SPACING 5
-#define LINE_OPACITY 0.45
+#define LINE_OPACITY 0.3
+#define LINE_OPACITY_ACTIVE 0.9
 #define LINE_MARGIN 2
 #define DEFAULT_DURATION 250
 
-#define DOTS_RADIUS 2
+#define DOTS_RADIUS 3
 #define DOTS_RADIUS_SELECTED 4
-#define DOTS_OPACITY 0.45
-#define DOTS_OPACITY_SELECTED 0.7
-#define DOTS_SPACING 5
-#define DOTS_MARGIN 3
+#define DOTS_OPACITY 0.3
+#define DOTS_OPACITY_SELECTED 0.9
+#define DOTS_SPACING 7
+#define DOTS_MARGIN 6
 
 /**
  * SECTION:hdy-paginator
@@ -213,7 +214,8 @@ draw_indicators_lines (GtkWidget      *widget,
     cairo_fill (cr);
   }
 
-  cairo_set_source_rgba (cr, color.red, color.green, color.blue, color.alpha);
+  cairo_set_source_rgba (cr, color.red, color.green, color.blue,
+                         color.alpha * LINE_OPACITY_ACTIVE);
   if (orientation == GTK_ORIENTATION_HORIZONTAL)
     cairo_rectangle (cr, position, 0, length, 1);
   else

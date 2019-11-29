@@ -93,6 +93,7 @@ enum {
   PROP_INTERPOLATE_SIZE,
   PROP_CAN_SWIPE_BACK,
   PROP_CAN_SWIPE_FORWARD,
+  PROP_ALWAYS_FOLDED,
 
   /* orientable */
   PROP_ORIENTATION,
@@ -139,6 +140,7 @@ typedef struct
   GdkWindow* view_window;
 
   HdyFold fold;
+  gboolean always_folded;
 
   gboolean homogeneous[HDY_FOLD_MAX][GTK_ORIENTATION_MAX];
 
@@ -1521,6 +1523,58 @@ hdy_leaflet_get_can_swipe_forward (HdyLeaflet *self)
   return priv->child_transition.can_swipe_forward;
 }
 
+/**
+ * hdy_leaflet_set_always_folded
+ * @self: a #HdyLeaflet
+ * @always_folded: the new value
+ *
+ * Sets whether @self should be folded regardless of size.
+ *
+ * Since: 0.0.12
+ */
+void
+hdy_leaflet_set_always_folded (HdyLeaflet *self,
+                               gboolean    always_folded)
+{
+  HdyLeafletPrivate *priv;
+
+  g_return_if_fail (HDY_IS_LEAFLET (self));
+
+  priv = hdy_leaflet_get_instance_private (self);
+
+  always_folded = !!always_folded;
+
+  if (priv->always_folded == always_folded)
+    return;
+
+  priv->always_folded = always_folded;
+  gtk_widget_queue_allocate (GTK_WIDGET (self));
+
+  g_object_notify_by_pspec (G_OBJECT (self), props[PROP_ALWAYS_FOLDED]);
+}
+
+/**
+ * hdy_leaflet_get_always_folded
+ * @self: a #HdyLeaflet
+ *
+ * Returns whether @self should be folded regardless of size.
+ *
+ * Returns: %TRUE if @self is always folded.
+ *
+ * Since: 0.0.12
+ */
+gboolean
+hdy_leaflet_get_always_folded (HdyLeaflet *self)
+{
+  HdyLeafletPrivate *priv;
+
+  g_return_val_if_fail (HDY_IS_LEAFLET (self), FALSE);
+
+  priv = hdy_leaflet_get_instance_private (self);
+
+  return priv->always_folded;
+}
+
 static void
 get_preferred_size (gint     *min,
                     gint     *nat,
@@ -2182,10 +2236,8 @@ hdy_leaflet_size_allocate (GtkWidget     *widget,
 {
   HdyLeaflet *self = HDY_LEAFLET (widget);
   HdyLeafletPrivate *priv = hdy_leaflet_get_instance_private (self);
-  GtkOrientation orientation = gtk_orientable_get_orientation (GTK_ORIENTABLE (widget));
   GList *directed_children, *children;
   HdyLeafletChildInfo *child_info;
-  gint nat_box_size, nat_max_size, visible_children;
   gboolean folded;
 
   directed_children = get_directed_children (self);
@@ -2208,41 +2260,48 @@ hdy_leaflet_size_allocate (GtkWidget     *widget,
     child_info->visible = FALSE;
   }
 
-  /* Check whether the children should be stacked or not. */
-  nat_box_size = 0;
-  nat_max_size = 0;
-  visible_children = 0;
-  if (orientation == GTK_ORIENTATION_HORIZONTAL) {
-    for (children = directed_children; children; children = children->next) {
-      child_info = children->data;
+  if (priv->always_folded) {
+    folded = TRUE;
+  } else {
+    GtkOrientation orientation = gtk_orientable_get_orientation (GTK_ORIENTABLE (widget));
+    gint nat_box_size, nat_max_size, visible_children;
 
-      /* FIXME Check the child is visible. */
-      if (!child_info->widget)
-        continue;
+    /* Check whether the children should be stacked or not. */
+    nat_box_size = 0;
+    nat_max_size = 0;
+    visible_children = 0;
+    if (orientation == GTK_ORIENTATION_HORIZONTAL) {
+      for (children = directed_children; children; children = children->next) {
+        child_info = children->data;
 
-      nat_box_size += child_info->nat.width;
-      nat_max_size = MAX (nat_max_size, child_info->nat.width);
-      visible_children++;
+        /* FIXME Check the child is visible. */
+        if (!child_info->widget)
+          continue;
+
+        nat_box_size += child_info->nat.width;
+        nat_max_size = MAX (nat_max_size, child_info->nat.width);
+        visible_children++;
+      }
+      if (priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_HORIZONTAL])
+        nat_box_size = nat_max_size * visible_children;
+      folded = allocation->width < nat_box_size;
     }
-    if (priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_HORIZONTAL])
-      nat_box_size = nat_max_size * visible_children;
-    folded = allocation->width < nat_box_size;
-  }
-  else {
-    for (children = directed_children; children; children = children->next) {
-      child_info = children->data;
+    else {
+      for (children = directed_children; children; children = children->next) {
+        child_info = children->data;
 
-      /* FIXME Check the child is visible. */
-      if (!child_info->widget)
-        continue;
+        /* FIXME Check the child is visible. */
+        if (!child_info->widget)
+          continue;
 
-      nat_box_size += child_info->nat.height;
-      nat_max_size = MAX (nat_max_size, child_info->nat.height);
-      visible_children++;
+        nat_box_size += child_info->nat.height;
+        nat_max_size = MAX (nat_max_size, child_info->nat.height);
+        visible_children++;
+      }
+      if (priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_VERTICAL])
+        nat_box_size = nat_max_size * visible_children;
+      folded = allocation->height < nat_box_size;
     }
-    if (priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_VERTICAL])
-      nat_box_size = nat_max_size * visible_children;
-    folded = allocation->height < nat_box_size;
   }
 
   hdy_leaflet_set_fold (self, folded ? HDY_FOLD_FOLDED : HDY_FOLD_UNFOLDED);
@@ -3120,6 +3179,9 @@ hdy_leaflet_get_property (GObject    *object,
   case PROP_CAN_SWIPE_FORWARD:
     g_value_set_boolean (value, hdy_leaflet_get_can_swipe_forward (self));
     break;
+  case PROP_ALWAYS_FOLDED:
+    g_value_set_boolean (value, hdy_leaflet_get_always_folded (self));
+    break;
   case PROP_ORIENTATION:
     g_value_set_enum (value, priv->orientation);
     break;
@@ -3179,6 +3241,9 @@ hdy_leaflet_set_property (GObject      *object,
     break;
   case PROP_CAN_SWIPE_FORWARD:
     hdy_leaflet_set_can_swipe_forward (self, g_value_get_boolean (value));
+    break;
+  case PROP_ALWAYS_FOLDED:
+    hdy_leaflet_set_always_folded (self, g_value_get_boolean (value));
     break;
   case PROP_ORIENTATION:
     {
@@ -3810,6 +3875,13 @@ hdy_leaflet_class_init (HdyLeafletClass *klass)
                             FALSE,
                             G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY);
 
+  props[PROP_ALWAYS_FOLDED] =
+      g_param_spec_boolean ("always-folded",
+                            _("Always folded"),
+                            _("Whether or not the widget should be always folded regardless of size"),
+                            FALSE,
+                            G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY);
+
   g_object_class_install_properties (object_class, LAST_PROP, props);
 
   child_props[CHILD_PROP_NAME] =
@@ -3848,6 +3920,7 @@ hdy_leaflet_init (HdyLeaflet *self)
   priv->children_reversed = NULL;
   priv->visible_child = NULL;
   priv->fold = HDY_FOLD_UNFOLDED;
+  priv->always_folded = FALSE;
   priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_HORIZONTAL] = FALSE;
   priv->homogeneous[HDY_FOLD_UNFOLDED][GTK_ORIENTATION_VERTICAL] = FALSE;
   priv->homogeneous[HDY_FOLD_FOLDED][GTK_ORIENTATION_HORIZONTAL] = TRUE;

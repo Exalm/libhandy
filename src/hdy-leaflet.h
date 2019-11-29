@@ -111,4 +111,8 @@ gboolean         hdy_leaflet_get_can_swipe_forward (HdyLeaflet *self);
 void             hdy_leaflet_set_can_swipe_forward (HdyLeaflet *self,
                                                     gboolean    can_swipe_forward);
 
+gboolean         hdy_leaflet_get_always_folded (HdyLeaflet *self);
+void             hdy_leaflet_set_always_folded (HdyLeaflet *self,
+                                                gboolean    always_folded);
+
 G_END_DECLS

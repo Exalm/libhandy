@@ -11,11 +11,10 @@
       <object class="HdyTitleBar">
         <property name="visible">True</property>
         <child>
-          <object class="GtkStack">
+          <object class="HdyLeaflet" id="title_leaflet">
             <property name="visible">True</property>
-            <property name="transition-type">slide-left-right</property>
-            <property name="visible-child-name" bind-source="content_stack" bind-property="visible-child-name" bind-flags="sync-create|bidirectional"/>
-            <signal name="notify::visible-child" handler="notify_header_visible_child_cb" swapped="no"/>
+            <property name="transition-type">over</property>
+            <property name="always-folded">True</property>
             <child>
               <object class="HdyHeaderBar" id="header_bar">
                 <property name="visible">True</property>
@@ -71,11 +70,13 @@
         <property name="visible">True</property>
         <property name="border_width">0</property>
         <child>
-          <object class="GtkStack" id="content_stack">
+          <object class="HdyLeaflet" id="content_leaflet">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="vexpand">True</property>
-            <property name="transition_type">slide-left-right</property>
+            <property name="transition_type">over</property>
+            <property name="always-folded">True</property>
+            <property name="can-swipe-back">True</property>
             <child>
               <object class="GtkButton" id="deeper">
                 <property name="visible">True</property>
@@ -111,5 +112,11 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="HdySwipeGroup">
+    <swipeables>
+      <swipeable name="title_leaflet"/>
+      <swipeable name="content_leaflet"/>
+    </swipeables>
   </object>
 </interface>

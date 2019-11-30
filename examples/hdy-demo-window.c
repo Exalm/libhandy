@@ -260,15 +260,15 @@ dialog_action_clicked_cb (GtkButton     *btn,
 }
 
 static void
-dialog_complex_deeper_clicked_cb (GtkStack *stack)
+dialog_complex_deeper_clicked_cb (HdyLeaflet *leaflet)
 {
-  gtk_stack_set_visible_child_name (stack, "sub");
+  hdy_leaflet_set_visible_child_name (leaflet, "sub");
 }
 
 static void
-dialog_complex_back_clicked_cb (GtkStack *stack)
+dialog_complex_back_clicked_cb (HdyLeaflet *leaflet)
 {
-  gtk_stack_set_visible_child_name (stack, "main");
+  hdy_leaflet_set_visible_child_name (leaflet, "main");
 }
 
 static void
@@ -276,14 +276,14 @@ dialog_complex_clicked_cb (GtkButton     *btn,
                            HdyDemoWindow *self)
 {
   g_autoptr (GtkBuilder) builder = gtk_builder_new_from_resource ("/sm/puri/handy/demo/ui/hdy-dialog-complex-example.ui");
-  GtkWidget *dlg, *back, *deeper, *stack;
+  GtkWidget *dlg, *back, *deeper, *leaflet;
 
   dlg = GTK_WIDGET (gtk_builder_get_object (builder, "dialog"));
   back = GTK_WIDGET (gtk_builder_get_object (builder, "back"));
   deeper = GTK_WIDGET (gtk_builder_get_object (builder, "deeper"));
-  stack = GTK_WIDGET (gtk_builder_get_object (builder, "content_stack"));
-  g_signal_connect_swapped (deeper, "clicked", G_CALLBACK (dialog_complex_deeper_clicked_cb), stack);
-  g_signal_connect_swapped (back, "clicked", G_CALLBACK (dialog_complex_back_clicked_cb), stack);
+  leaflet = GTK_WIDGET (gtk_builder_get_object (builder, "content_leaflet"));
+  g_signal_connect_swapped (deeper, "clicked", G_CALLBACK (dialog_complex_deeper_clicked_cb), leaflet);
+  g_signal_connect_swapped (back, "clicked", G_CALLBACK (dialog_complex_back_clicked_cb), leaflet);
   gtk_window_set_transient_for (GTK_WINDOW (dlg), GTK_WINDOW (self));
 
   gtk_widget_show (dlg);
